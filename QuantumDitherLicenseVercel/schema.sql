@@ -15,7 +15,8 @@ CREATE INDEX IF NOT EXISTS licenses_product_active_idx
 
 CREATE TABLE IF NOT EXISTS activation_events (
     id BIGSERIAL PRIMARY KEY,
-    license_hash CHAR(64) NOT NULL REFERENCES licenses(license_hash) ON UPDATE CASCADE ON DELETE CASCADE,
+    license_hash CHAR(64) REFERENCES licenses(license_hash) ON UPDATE CASCADE ON DELETE CASCADE,
+    attempted_license_hash CHAR(64) NOT NULL,
     device_id CHAR(32) NOT NULL,
     accepted BOOLEAN NOT NULL,
     reason TEXT NOT NULL,
@@ -23,4 +24,4 @@ CREATE TABLE IF NOT EXISTS activation_events (
 );
 
 CREATE INDEX IF NOT EXISTS activation_events_license_created_idx
-    ON activation_events (license_hash, created_at DESC);
+    ON activation_events (attempted_license_hash, created_at DESC);

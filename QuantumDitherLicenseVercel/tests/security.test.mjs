@@ -26,7 +26,7 @@ test("parses Zapier boolean values", () => {
   assert.equal(toBoolean("maybe"), null);
 });
 
-test("matches sync secrets from header or bearer auth", () => {
+test("matches sync secrets from header or bearer auth", { concurrency: false }, () => {
   const original = process.env.QDS_SYNC_SECRET;
   process.env.QDS_SYNC_SECRET = "s".repeat(32);
 
@@ -38,7 +38,7 @@ test("matches sync secrets from header or bearer auth", () => {
   }
 });
 
-test("rejects mismatched or weak sync secrets", () => {
+test("rejects mismatched or weak sync secrets", { concurrency: false }, () => {
   const original = process.env.QDS_SYNC_SECRET;
 
   try {

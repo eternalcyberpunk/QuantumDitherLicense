@@ -4,11 +4,11 @@ import { licenseHash, normalizeDevice, normalizeLicense } from "../lib/security.
 
 const PRODUCT = process.env.QDS_PRODUCT_CODE || "quantum-dither-synth";
 
-async function recordEvent(client, hash, deviceId, accepted, reason) {
+async function recordEvent(client, licenseHashValue, attemptedHash, deviceId, accepted, reason) {
   await client.query(
-    `INSERT INTO activation_events (license_hash, device_id, accepted, reason)
-     VALUES ($1, $2, $3, $4)`,
-    [hash, deviceId, accepted, reason]
+    `INSERT INTO activation_events (license_hash, attempted_license_hash, device_id, accepted, reason)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [licenseHashValue, attemptedHash, deviceId, accepted, reason]
   );
 }
 
@@ -37,19 +37,20 @@ export default async function handler(request, response) {
     );
 
     if (result.rowCount !== 1) {
+      await recordEvent(client, null, hash, deviceId, false, "unknown_license");
       await client.query("COMMIT");
       return json(response, 403, { valid: false, product: PRODUCT });
     }
 
     if (!result.rows[0].active || result.rows[0].product !== PRODUCT) {
-      await recordEvent(client, hash, deviceId, false, "invalid_or_inactive");
+      await recordEvent(client, hash, hash, deviceId, false, "invalid_or_inactive");
       await client.query("COMMIT");
       return json(response, 403, { valid: false, product: PRODUCT });
     }
 
     const storedDevice = result.rows[0].device_id;
     if (storedDevice && storedDevice !== deviceId) {
-      await recordEvent(client, hash, deviceId, false, "device_mismatch");
+      await recordEvent(client, hash, hash, deviceId, false, "device_mismatch");
       await client.query("COMMIT");
       return json(response, 403, { valid: false, product: PRODUCT });
     }
@@ -60,7 +61,7 @@ export default async function handler(request, response) {
         [deviceId, hash]
       );
     }
-    await recordEvent(client, hash, deviceId, true, storedDevice ? "device_match" : "device_bound");
+    await recordEvent(client, hash, hash, deviceId, true, storedDevice ? "device_match" : "device_bound");
     await client.query("COMMIT");
     return json(response, 200, { valid: true, product: PRODUCT });
   } catch (error) {
