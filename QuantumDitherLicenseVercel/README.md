@@ -132,5 +132,6 @@ npm test
 npm run check
 ```
 
-For local API testing, copy `.env.example` to `.env.local`, fill in private
-values, run `vercel dev`, and apply `schema.sql` to the configured database.
+For local API testing, install the Vercel CLI first, then copy `.env.example`
+to `.env.local`, fill in private values, run `vercel dev`, and apply
+`schema.sql` to the configured database.
