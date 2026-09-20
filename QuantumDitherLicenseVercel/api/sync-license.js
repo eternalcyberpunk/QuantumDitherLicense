@@ -40,7 +40,6 @@ export default async function handler(request, response) {
         (license_hash, order_id, product, active, customer_email, device_id, refunded_at)
        VALUES ($1, $2, $3, $4, $5, NULL, $6)
        ON CONFLICT (order_id) DO UPDATE SET
-         license_hash = EXCLUDED.license_hash,
          product = EXCLUDED.product,
          active = EXCLUDED.active,
          customer_email = EXCLUDED.customer_email,
