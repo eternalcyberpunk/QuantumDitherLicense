@@ -44,3 +44,12 @@ test("rejects weak configured sync secret", { concurrency: false }, () => {
 
   process.env.QDS_SYNC_SECRET = previous;
 });
+
+test("rejects mismatched sync secret when configured secret is valid", { concurrency: false }, () => {
+  const previous = process.env.QDS_SYNC_SECRET;
+  process.env.QDS_SYNC_SECRET = "v".repeat(32);
+
+  assert.equal(secretMatches({ headers: { "x-qds-sync-secret": "x".repeat(32) } }), false);
+
+  process.env.QDS_SYNC_SECRET = previous;
+});

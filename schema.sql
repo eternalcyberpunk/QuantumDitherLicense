@@ -25,3 +25,6 @@ CREATE TABLE IF NOT EXISTS activation_events (
 
 CREATE INDEX IF NOT EXISTS activation_events_license_created_idx
     ON activation_events (license_hash, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS activation_events_attempted_created_idx
+    ON activation_events (attempted_hash, created_at DESC);

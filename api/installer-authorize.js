@@ -3,11 +3,11 @@ import { getCatalog, materializeArtifact, normalizeTarget, selectProduct } from 
 import { json, methodAllowed, readBody } from "../lib/http.js";
 import { licenseHash, normalizeDevice, normalizeLicense } from "../lib/security.js";
 
-async function recordEvent(client, hash, deviceId, accepted, reason) {
+async function recordEvent(client, attemptedHash, linkedHash, deviceId, accepted, reason) {
   await client.query(
-    `INSERT INTO activation_events (license_hash, device_id, accepted, reason)
-     VALUES ($1, $2, $3, $4)`,
-    [hash, deviceId, accepted, reason]
+    `INSERT INTO activation_events (attempted_hash, license_hash, device_id, accepted, reason)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [attemptedHash, linkedHash, deviceId, accepted, reason]
   );
 }
 
@@ -37,7 +37,7 @@ export default async function handler(request, response) {
       [hash]
     );
     if (result.rowCount !== 1 || !result.rows[0].active || result.rows[0].product !== requestedProduct) {
-      if (result.rowCount === 1) await recordEvent(client, hash, deviceId, false, "installer_invalid");
+      await recordEvent(client, hash, result.rowCount === 1 ? hash : null, deviceId, false, "installer_invalid");
       await client.query("COMMIT");
       transactionOpen = false;
       return json(response, 403, { authorized: false });
@@ -45,7 +45,7 @@ export default async function handler(request, response) {
 
     const selected = selectProduct(getCatalog(), requestedProduct, target);
     if (!selected) {
-      await recordEvent(client, hash, deviceId, false, "installer_artifact_missing");
+      await recordEvent(client, hash, hash, deviceId, false, "installer_artifact_missing");
       await client.query("COMMIT");
       transactionOpen = false;
       return json(response, 403, { authorized: false });
@@ -53,7 +53,7 @@ export default async function handler(request, response) {
 
     const storedDevice = result.rows[0].device_id;
     if (storedDevice && storedDevice !== deviceId) {
-      await recordEvent(client, hash, deviceId, false, "installer_device_mismatch");
+      await recordEvent(client, hash, hash, deviceId, false, "installer_device_mismatch");
       await client.query("COMMIT");
       transactionOpen = false;
       return json(response, 403, { authorized: false });
@@ -64,7 +64,7 @@ export default async function handler(request, response) {
         [deviceId, hash]
       );
     }
-    await recordEvent(client, hash, deviceId, true,
+    await recordEvent(client, hash, hash, deviceId, true,
       storedDevice ? "installer_device_match" : "installer_device_bound");
     await client.query("COMMIT");
     transactionOpen = false;
