@@ -1,25 +1,28 @@
 import { pool } from "../lib/db.js";
+import { getCatalog } from "../lib/catalog.js";
 import { json, methodAllowed, readBody } from "../lib/http.js";
 import { licenseHash, normalizeLicense, secretMatches, toBoolean } from "../lib/security.js";
 
-function productCode() {
-  return process.env.QDS_PRODUCT_CODE || "quantum-dither-synth";
+const PRODUCT = process.env.QDS_PRODUCT_CODE || "quantum-dither-synth";
+
+function allowedProduct(product) {
+  if (product === PRODUCT) return true;
+  try { return Boolean(getCatalog()[product]); } catch { return false; }
 }
 
 export default async function handler(request, response) {
   if (!methodAllowed(request, response, "POST")) return;
   if (!secretMatches(request)) return json(response, 401, { synced: false, error: "unauthorized" });
 
-  const productCodeValue = productCode();
   const body = readBody(request);
   const licenseKey = normalizeLicense(body.license_key);
   const orderId = String(body.order_id ?? "").trim();
-  const product = String(body.product ?? "").trim();
+  const product = String(body.product ?? "").trim().toLowerCase();
   const active = toBoolean(body.active);
   const customerEmail = String(body.customer_email ?? "").trim().toLowerCase().slice(0, 320) || null;
   const resetDevice = toBoolean(body.reset_device) === true;
 
-  if (!orderId || product !== productCodeValue || active === null || (active && !licenseKey)) {
+  if (!orderId || !allowedProduct(product) || active === null || (active && !licenseKey)) {
     return json(response, 400, { synced: false, error: "invalid_payload" });
   }
 
