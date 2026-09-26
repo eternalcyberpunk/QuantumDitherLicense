@@ -74,6 +74,8 @@ export default async function handler(request, response) {
       storedDevice ? "installer_device_match" : "installer_device_bound");
     await client.query("COMMIT");
     transactionOpen = false;
+    client.release();
+    client = null;
     const artifact = await materializeArtifact(selected.artifact);
     return json(response, 200, {
       authorized: true,

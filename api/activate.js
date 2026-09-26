@@ -40,20 +40,20 @@ export default async function handler(request, response) {
     if (result.rowCount !== 1) {
       await recordEvent(client, hash, null, deviceId, false, "license_not_found");
       await client.query("COMMIT");
-      return json(response, 403, { valid: false, product });
+      return json(response, 403, { valid: false, product: defaultProduct });
     }
 
     if (!result.rows[0].active || result.rows[0].product !== product) {
       await recordEvent(client, hash, hash, deviceId, false, "invalid_or_inactive");
       await client.query("COMMIT");
-      return json(response, 403, { valid: false, product });
+      return json(response, 403, { valid: false, product: defaultProduct });
     }
 
     const storedDevice = result.rows[0].device_id;
     if (storedDevice && storedDevice !== deviceId) {
       await recordEvent(client, hash, hash, deviceId, false, "device_mismatch");
       await client.query("COMMIT");
-      return json(response, 403, { valid: false, product });
+      return json(response, 403, { valid: false, product: defaultProduct });
     }
 
     if (!storedDevice) {

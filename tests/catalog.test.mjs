@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { materializeArtifact, normalizeTarget, parseCatalog, selectProduct } from "../lib/catalog.js";
+import {
+  materializeArtifact,
+  normalizeTarget,
+  parseCatalog,
+  selectProduct,
+  setBlobSignerLoaderForTests
+} from "../lib/catalog.js";
 
 const hash = "a".repeat(64);
 const source = JSON.stringify({
@@ -110,4 +116,28 @@ test("materializeArtifact signs private blob artifacts", async () => {
     sha256: artifact.sha256,
     size_bytes: artifact.size_bytes,
   });
+});
+
+test("materializeArtifact uses default signer loader when signer is not injected", async () => {
+  const artifact = {
+    blob_path: "releases/QuantumDitherSynth-1.3.0-macOS.pkg",
+    file_name: "QuantumDitherSynth-1.3.0.pkg",
+    install_type: "pkg",
+    sha256: hash,
+    size_bytes: 4321,
+  };
+  setBlobSignerLoaderForTests(async () => ({
+    async issueSignedToken() {
+      return "loader-signed-token";
+    },
+    async presignUrl() {
+      return { presignedUrl: "https://blob.example.net/default-loader" };
+    },
+  }));
+  try {
+    const resolved = await materializeArtifact(artifact);
+    assert.equal(resolved.url, "https://blob.example.net/default-loader");
+  } finally {
+    setBlobSignerLoaderForTests(() => import("@vercel/blob"));
+  }
 });

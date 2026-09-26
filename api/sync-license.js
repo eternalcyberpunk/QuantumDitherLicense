@@ -51,6 +51,7 @@ export default async function handler(request, response) {
 
     const hash = licenseHash(licenseKey);
     const licenseProfile = resolveLicenseProfile(product);
+    const deviceIdClause = resetDevice ? "NULL" : "licenses.device_id";
     await pool.query(
       `INSERT INTO licenses
         (license_hash, order_id, product, license_profile, active, customer_email, device_id, refunded_at)
@@ -61,10 +62,10 @@ export default async function handler(request, response) {
          license_profile = EXCLUDED.license_profile,
          active = EXCLUDED.active,
          customer_email = EXCLUDED.customer_email,
-         device_id = CASE WHEN $7 THEN NULL ELSE licenses.device_id END,
+         device_id = ${deviceIdClause},
          refunded_at = EXCLUDED.refunded_at,
          updated_at = NOW()`,
-      [hash, orderId, product, licenseProfile, true, customerEmail, resetDevice]
+      [hash, orderId, product, licenseProfile, true, customerEmail]
     );
     return json(response, 200, { synced: true, product, active });
   } catch (error) {
