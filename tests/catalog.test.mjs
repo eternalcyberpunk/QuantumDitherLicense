@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { normalizeTarget, parseCatalog, selectProduct } from "../lib/catalog.js";
+import { materializeArtifact, normalizeTarget, parseCatalog, selectProduct } from "../lib/catalog.js";
 
 const hash = "a".repeat(64);
 const source = JSON.stringify({
@@ -64,4 +64,50 @@ test("catalog rejects a filename traversal", () => {
 
 test("target validation rejects unsupported architectures", () => {
   assert.equal(normalizeTarget("windows", "x86"), null);
+});
+
+test("materializeArtifact returns direct URL artifacts unchanged", async () => {
+  const artifact = {
+    url: "https://downloads.example.net/QuantumDitherSynth-1.3.0.msi",
+    file_name: "QuantumDitherSynth-1.3.0.msi",
+    install_type: "msi",
+    sha256: hash,
+    size_bytes: 1234,
+  };
+  const resolved = await materializeArtifact(artifact);
+  assert.deepEqual(resolved, artifact);
+});
+
+test("materializeArtifact signs private blob artifacts", async () => {
+  const artifact = {
+    blob_path: "releases/QuantumDitherSynth-1.3.0-Windows.msi",
+    file_name: "QuantumDitherSynth-1.3.0.msi",
+    install_type: "msi",
+    sha256: hash,
+    size_bytes: 1234,
+  };
+  const signer = {
+    async issueSignedToken({ pathname, operations, validUntil }) {
+      assert.equal(pathname, artifact.blob_path);
+      assert.deepEqual(operations, ["get"]);
+      assert.equal(typeof validUntil, "number");
+      return "signed-token";
+    },
+    async presignUrl(token, { pathname, operation, access, validUntil }) {
+      assert.equal(token, "signed-token");
+      assert.equal(pathname, artifact.blob_path);
+      assert.equal(operation, "get");
+      assert.equal(access, "private");
+      assert.equal(typeof validUntil, "number");
+      return { presignedUrl: "https://blob.example.net/signed-download" };
+    },
+  };
+  const resolved = await materializeArtifact(artifact, signer);
+  assert.deepEqual(resolved, {
+    url: "https://blob.example.net/signed-download",
+    file_name: artifact.file_name,
+    install_type: artifact.install_type,
+    sha256: artifact.sha256,
+    size_bytes: artifact.size_bytes,
+  });
 });

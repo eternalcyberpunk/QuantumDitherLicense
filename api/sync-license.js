@@ -54,17 +54,17 @@ export default async function handler(request, response) {
     await pool.query(
       `INSERT INTO licenses
         (license_hash, order_id, product, license_profile, active, customer_email, device_id, refunded_at)
-       VALUES ($1, $2, $3, $4, $5, $6, NULL, $7)
+       VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL)
        ON CONFLICT (order_id) DO UPDATE SET
          license_hash = EXCLUDED.license_hash,
          product = EXCLUDED.product,
          license_profile = EXCLUDED.license_profile,
          active = EXCLUDED.active,
          customer_email = EXCLUDED.customer_email,
-         device_id = CASE WHEN $8 THEN NULL ELSE licenses.device_id END,
+         device_id = CASE WHEN $7 THEN NULL ELSE licenses.device_id END,
          refunded_at = EXCLUDED.refunded_at,
          updated_at = NOW()`,
-      [hash, orderId, product, licenseProfile, true, customerEmail, null, resetDevice]
+      [hash, orderId, product, licenseProfile, true, customerEmail, resetDevice]
     );
     return json(response, 200, { synced: true, product, active });
   } catch (error) {
