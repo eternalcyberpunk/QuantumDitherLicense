@@ -1,9 +1,9 @@
 import { pool } from "../lib/db.js";
 import { getCatalog } from "../lib/catalog.js";
-import { json } from "../lib/http.js";
+import { json, methodAllowed } from "../lib/http.js";
 
 export default async function handler(request, response) {
-  if (request.method !== "GET") return json(response, 405, { ok: false });
+  if (!methodAllowed(request, response, "GET")) return;
   try {
     await pool.query("SELECT 1");
     let installerReady = false;

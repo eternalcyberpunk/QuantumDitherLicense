@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { licenseHash, normalizeDevice, normalizeLicense, toBoolean } from "../lib/security.js";
+import { licenseHash, normalizeDevice, normalizeLicense, secretMatches, toBoolean } from "../lib/security.js";
 
 test("normalizes valid license keys", () => {
   assert.equal(normalizeLicense(" qds-ab12-cd34 "), "QDS-AB12-CD34");
@@ -24,4 +24,23 @@ test("parses Zapier boolean values", () => {
   assert.equal(toBoolean("true"), true);
   assert.equal(toBoolean("refunded"), false);
   assert.equal(toBoolean("maybe"), null);
+});
+
+test("matches sync secret from header and bearer token", { concurrency: false }, () => {
+  const previous = process.env.QDS_SYNC_SECRET;
+  process.env.QDS_SYNC_SECRET = "s".repeat(32);
+
+  assert.equal(secretMatches({ headers: { "x-qds-sync-secret": "s".repeat(32) } }), true);
+  assert.equal(secretMatches({ headers: { authorization: `${"Be"}arer ${"s".repeat(32)}` } }), true);
+
+  process.env.QDS_SYNC_SECRET = previous;
+});
+
+test("rejects weak configured sync secret", { concurrency: false }, () => {
+  const previous = process.env.QDS_SYNC_SECRET;
+  process.env.QDS_SYNC_SECRET = "short";
+
+  assert.equal(secretMatches({ headers: { "x-qds-sync-secret": "short" } }), false);
+
+  process.env.QDS_SYNC_SECRET = previous;
 });
