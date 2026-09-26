@@ -21,7 +21,7 @@ function createResponse() {
   };
 }
 
-test("sync handler honors the configured product code", { concurrency: false }, async () => {
+test("sync handler honors configured product code", { concurrency: false }, async () => {
   const originalDbUrl = process.env.DATABASE_URL;
   const originalSecret = process.env.QDS_SYNC_SECRET;
   const originalPepper = process.env.QDS_LICENSE_PEPPER;

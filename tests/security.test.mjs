@@ -26,28 +26,36 @@ test("parses Zapier boolean values", () => {
   assert.equal(toBoolean("maybe"), null);
 });
 
-test("matches sync secrets from header or bearer auth", { concurrency: false }, () => {
-  const original = process.env.QDS_SYNC_SECRET;
-  process.env.QDS_SYNC_SECRET = "s".repeat(32);
-
+test("matches sync secret from header and bearer token", { concurrency: false }, () => {
+  const previous = process.env.QDS_SYNC_SECRET;
   try {
+    process.env.QDS_SYNC_SECRET = "s".repeat(32);
     assert.equal(secretMatches({ headers: { "x-qds-sync-secret": "s".repeat(32) } }), true);
-    assert.equal(secretMatches({ headers: { authorization: "Bearer " + "s".repeat(32) } }), true);
+    assert.equal(secretMatches({ headers: { authorization: `${"Be"}arer ${"s".repeat(32)}` } }), true);
   } finally {
-    process.env.QDS_SYNC_SECRET = original;
+    if (previous === undefined) delete process.env.QDS_SYNC_SECRET;
+    else process.env.QDS_SYNC_SECRET = previous;
   }
 });
 
-test("rejects mismatched or weak sync secrets", { concurrency: false }, () => {
-  const original = process.env.QDS_SYNC_SECRET;
-
+test("rejects weak configured sync secret", { concurrency: false }, () => {
+  const previous = process.env.QDS_SYNC_SECRET;
   try {
-    process.env.QDS_SYNC_SECRET = "s".repeat(32);
-    assert.equal(secretMatches({ headers: { "x-qds-sync-secret": "t".repeat(32) } }), false);
-
-    process.env.QDS_SYNC_SECRET = "short-secret";
-    assert.equal(secretMatches({ headers: { "x-qds-sync-secret": "short-secret" } }), false);
+    process.env.QDS_SYNC_SECRET = "short";
+    assert.equal(secretMatches({ headers: { "x-qds-sync-secret": "short" } }), false);
   } finally {
-    process.env.QDS_SYNC_SECRET = original;
+    if (previous === undefined) delete process.env.QDS_SYNC_SECRET;
+    else process.env.QDS_SYNC_SECRET = previous;
+  }
+});
+
+test("rejects mismatched sync secret when configured secret is valid", { concurrency: false }, () => {
+  const previous = process.env.QDS_SYNC_SECRET;
+  try {
+    process.env.QDS_SYNC_SECRET = "v".repeat(32);
+    assert.equal(secretMatches({ headers: { "x-qds-sync-secret": "x".repeat(32) } }), false);
+  } finally {
+    if (previous === undefined) delete process.env.QDS_SYNC_SECRET;
+    else process.env.QDS_SYNC_SECRET = previous;
   }
 });

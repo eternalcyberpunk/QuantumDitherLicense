@@ -2,28 +2,26 @@ import { pool } from "../lib/db.js";
 import { json, methodAllowed, readBody } from "../lib/http.js";
 import { licenseHash, normalizeDevice, normalizeLicense } from "../lib/security.js";
 
-function productCode() {
-  return process.env.QDS_PRODUCT_CODE || "quantum-dither-synth";
-}
-
-async function recordEvent(client, licenseHashValue, attemptedHash, deviceId, accepted, reason) {
+async function recordEvent(client, attemptedHash, linkedHash, deviceId, accepted, reason) {
   await client.query(
-    `INSERT INTO activation_events (license_hash, attempted_license_hash, device_id, accepted, reason)
+    `INSERT INTO activation_events (attempted_license_hash, license_hash, device_id, accepted, reason)
      VALUES ($1, $2, $3, $4, $5)`,
-    [licenseHashValue, attemptedHash, deviceId, accepted, reason]
+    [attemptedHash, linkedHash, deviceId, accepted, reason]
   );
 }
 
 export default async function handler(request, response) {
   if (!methodAllowed(request, response, "POST")) return;
-  const productCodeValue = productCode();
   const body = readBody(request);
   const licenseKey = normalizeLicense(body.license_key);
   const deviceId = normalizeDevice(body.device_id);
-  const product = String(body.product ?? "").trim();
+  const product = String(body.product ?? "").trim().toLowerCase();
+  const defaultProduct = (process.env.QDS_PRODUCT_CODE || "quantum-dither-synth")
+    .trim()
+    .toLowerCase();
 
-  if (!licenseKey || !deviceId || product !== productCodeValue) {
-    return json(response, 400, { valid: false, product: productCodeValue });
+  if (!licenseKey || !deviceId || !/^[a-z0-9][a-z0-9_-]{1,63}$/.test(product)) {
+    return json(response, 400, { valid: false, product: defaultProduct });
   }
 
   let client;
@@ -40,22 +38,22 @@ export default async function handler(request, response) {
     );
 
     if (result.rowCount !== 1) {
-      await recordEvent(client, null, hash, deviceId, false, "unknown_license");
+      await recordEvent(client, hash, null, deviceId, false, "license_not_found");
       await client.query("COMMIT");
-      return json(response, 403, { valid: false, product: productCodeValue });
+      return json(response, 403, { valid: false, product: defaultProduct });
     }
 
-    if (!result.rows[0].active || result.rows[0].product !== productCodeValue) {
+    if (!result.rows[0].active || result.rows[0].product !== product) {
       await recordEvent(client, hash, hash, deviceId, false, "invalid_or_inactive");
       await client.query("COMMIT");
-      return json(response, 403, { valid: false, product: productCodeValue });
+      return json(response, 403, { valid: false, product: defaultProduct });
     }
 
     const storedDevice = result.rows[0].device_id;
     if (storedDevice && storedDevice !== deviceId) {
       await recordEvent(client, hash, hash, deviceId, false, "device_mismatch");
       await client.query("COMMIT");
-      return json(response, 403, { valid: false, product: productCodeValue });
+      return json(response, 403, { valid: false, product: defaultProduct });
     }
 
     if (!storedDevice) {
@@ -66,13 +64,13 @@ export default async function handler(request, response) {
     }
     await recordEvent(client, hash, hash, deviceId, true, storedDevice ? "device_match" : "device_bound");
     await client.query("COMMIT");
-    return json(response, 200, { valid: true, product: productCodeValue });
+    return json(response, 200, { valid: true, product });
   } catch (error) {
     if (client) {
       try { await client.query("ROLLBACK"); } catch { /* connection is already unusable */ }
     }
     console.error("activation failed", error?.code ?? "database_error");
-    return json(response, 503, { valid: false, product: productCodeValue });
+    return json(response, 503, { valid: false, product: defaultProduct });
   } finally {
     client?.release();
   }

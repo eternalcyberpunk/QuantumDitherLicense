@@ -23,7 +23,7 @@ function createResponse() {
   };
 }
 
-test("records unknown license activation attempts with attempted hash only", { concurrency: false }, async () => {
+test("records unknown license activation attempts", { concurrency: false }, async () => {
   const originalDbUrl = process.env.DATABASE_URL;
   const originalPepper = process.env.QDS_LICENSE_PEPPER;
   const queries = [];
@@ -58,7 +58,7 @@ test("records unknown license activation attempts with attempted hash only", { c
     const hash = licenseHash("QDS-AB12-CD34", process.env.QDS_LICENSE_PEPPER);
     const insert = queries.find(([sql]) => sql.includes("INSERT INTO activation_events"));
 
-    assert.deepEqual(insert?.[1], [null, hash, "0123456789abcdef0123456789abcdef", false, "unknown_license"]);
+    assert.deepEqual(insert?.[1], [hash, null, "0123456789abcdef0123456789abcdef", false, "license_not_found"]);
     assert.equal(response.statusCode, 403);
     assert.deepEqual(response.payload, { valid: false, product: "quantum-dither-synth" });
   } finally {
@@ -70,7 +70,7 @@ test("records unknown license activation attempts with attempted hash only", { c
   }
 });
 
-test("records successful activations with both linked and attempted hashes", { concurrency: false }, async () => {
+test("records successful activations with linked hash", { concurrency: false }, async () => {
   const originalDbUrl = process.env.DATABASE_URL;
   const originalPepper = process.env.QDS_LICENSE_PEPPER;
   const queries = [];

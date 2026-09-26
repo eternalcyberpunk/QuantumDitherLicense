@@ -1,25 +1,37 @@
 import { pool } from "../lib/db.js";
+import { getCatalog } from "../lib/catalog.js";
 import { json, methodAllowed, readBody } from "../lib/http.js";
 import { licenseHash, normalizeLicense, secretMatches, toBoolean } from "../lib/security.js";
 
-function productCode() {
-  return process.env.QDS_PRODUCT_CODE || "quantum-dither-synth";
+function allowedProduct(product) {
+  const configuredProduct = (process.env.QDS_PRODUCT_CODE || "quantum-dither-synth")
+    .trim()
+    .toLowerCase();
+  if (product === configuredProduct) return true;
+  try { return Boolean(getCatalog()[product]); } catch { return false; }
+}
+
+function resolveLicenseProfile(product) {
+  try {
+    const profile = getCatalog()[product]?.license_profile;
+    if (typeof profile === "string" && profile.trim()) return profile.trim();
+  } catch { /* catalog is optional for legacy product sync */ }
+  return "qds-v1";
 }
 
 export default async function handler(request, response) {
   if (!methodAllowed(request, response, "POST")) return;
   if (!secretMatches(request)) return json(response, 401, { synced: false, error: "unauthorized" });
 
-  const productCodeValue = productCode();
   const body = readBody(request);
   const licenseKey = normalizeLicense(body.license_key);
   const orderId = String(body.order_id ?? "").trim();
-  const product = String(body.product ?? "").trim();
+  const product = String(body.product ?? "").trim().toLowerCase();
   const active = toBoolean(body.active);
   const customerEmail = String(body.customer_email ?? "").trim().toLowerCase().slice(0, 320) || null;
   const resetDevice = toBoolean(body.reset_device) === true;
 
-  if (!orderId || product !== productCodeValue || active === null || (active && !licenseKey)) {
+  if (!orderId || !allowedProduct(product) || active === null || (active && !licenseKey)) {
     return json(response, 400, { synced: false, error: "invalid_payload" });
   }
 
@@ -38,19 +50,22 @@ export default async function handler(request, response) {
     }
 
     const hash = licenseHash(licenseKey);
+    const licenseProfile = resolveLicenseProfile(product);
+    const deviceIdClause = resetDevice ? "NULL" : "licenses.device_id";
     await pool.query(
       `INSERT INTO licenses
-        (license_hash, order_id, product, active, customer_email, device_id, refunded_at)
-       VALUES ($1, $2, $3, $4, $5, NULL, $6)
+        (license_hash, order_id, product, license_profile, active, customer_email, device_id, refunded_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL)
        ON CONFLICT (order_id) DO UPDATE SET
          license_hash = EXCLUDED.license_hash,
          product = EXCLUDED.product,
+         license_profile = EXCLUDED.license_profile,
          active = EXCLUDED.active,
          customer_email = EXCLUDED.customer_email,
-         device_id = CASE WHEN $7 THEN NULL ELSE licenses.device_id END,
+         device_id = ${deviceIdClause},
          refunded_at = EXCLUDED.refunded_at,
          updated_at = NOW()`,
-      [hash, orderId, product, true, customerEmail, null, resetDevice]
+      [hash, orderId, product, licenseProfile, true, customerEmail]
     );
     return json(response, 200, { synced: true, product, active });
   } catch (error) {

@@ -6,6 +6,7 @@ calls `/api/activate` for an immediate decision.
 
 The service stores an HMAC-SHA256 hash of each license rather than the plaintext
 key. The first successful activation binds the license to one random device ID.
+Version 1.1 also supports the reusable Eternal Cyberia desktop installer.
 
 ## Architecture
 
@@ -14,6 +15,19 @@ Payhip New Sale -> Zapier -> POST /api/sync-license -> PostgreSQL
 After Effects ----------------> POST /api/activate -> valid true/false
 Payhip Refund --> Zapier -> POST /api/sync-license -> active false
 ```
+
+Installer additions:
+
+```text
+Installer -> POST /api/installer-resolve   -> product/profile (no seat change)
+Installer -> POST /api/installer-authorize -> bind/check device + signed package URL
+Installer -> private Vercel Blob URL        -> signed MSI or notarized PKG
+```
+
+Set `EC_INSTALLER_CATALOG_JSON` using `.env.installer.example`. For the recommended
+private Blob configuration, connect that Blob store to this project so Vercel can
+issue a pathname-scoped GET URL valid for ten minutes. Public HTTPS artifact URLs
+are also accepted, but do not provide download gating.
 
 Zapier Tables can remain your human-readable dashboard, but the Vercel database
 is the low-latency validation source. In the purchase Zap, create/update the
@@ -132,6 +146,5 @@ npm test
 npm run check
 ```
 
-For local API testing, install the Vercel CLI first, then copy `.env.example`
-to `.env.local`, fill in private values, run `vercel dev`, and apply
-`schema.sql` to the configured database.
+For local API testing, copy `.env.example` to `.env.local`, fill in private
+values, run `vercel dev`, and apply `schema.sql` to the configured database.
