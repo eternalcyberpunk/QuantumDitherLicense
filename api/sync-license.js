@@ -3,10 +3,11 @@ import { getCatalog } from "../lib/catalog.js";
 import { json, methodAllowed, readBody } from "../lib/http.js";
 import { licenseHash, normalizeLicense, secretMatches, toBoolean } from "../lib/security.js";
 
-const PRODUCT = process.env.QDS_PRODUCT_CODE || "quantum-dither-synth";
-
 function allowedProduct(product) {
-  if (product === PRODUCT) return true;
+  const configuredProduct = (process.env.QDS_PRODUCT_CODE || "quantum-dither-synth")
+    .trim()
+    .toLowerCase();
+  if (product === configuredProduct) return true;
   try { return Boolean(getCatalog()[product]); } catch { return false; }
 }
 

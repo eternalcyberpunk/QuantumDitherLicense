@@ -16,9 +16,12 @@ export default async function handler(request, response) {
   const licenseKey = normalizeLicense(body.license_key);
   const deviceId = normalizeDevice(body.device_id);
   const product = String(body.product ?? "").trim().toLowerCase();
+  const defaultProduct = (process.env.QDS_PRODUCT_CODE || "quantum-dither-synth")
+    .trim()
+    .toLowerCase();
 
   if (!licenseKey || !deviceId || !/^[a-z0-9][a-z0-9_-]{1,63}$/.test(product)) {
-    return json(response, 400, { valid: false, product });
+    return json(response, 400, { valid: false, product: defaultProduct });
   }
 
   let client;

@@ -28,28 +28,34 @@ test("parses Zapier boolean values", () => {
 
 test("matches sync secret from header and bearer token", { concurrency: false }, () => {
   const previous = process.env.QDS_SYNC_SECRET;
-  process.env.QDS_SYNC_SECRET = "s".repeat(32);
-
-  assert.equal(secretMatches({ headers: { "x-qds-sync-secret": "s".repeat(32) } }), true);
-  assert.equal(secretMatches({ headers: { authorization: `${"Be"}arer ${"s".repeat(32)}` } }), true);
-
-  process.env.QDS_SYNC_SECRET = previous;
+  try {
+    process.env.QDS_SYNC_SECRET = "s".repeat(32);
+    assert.equal(secretMatches({ headers: { "x-qds-sync-secret": "s".repeat(32) } }), true);
+    assert.equal(secretMatches({ headers: { authorization: `${"Be"}arer ${"s".repeat(32)}` } }), true);
+  } finally {
+    if (previous === undefined) delete process.env.QDS_SYNC_SECRET;
+    else process.env.QDS_SYNC_SECRET = previous;
+  }
 });
 
 test("rejects weak configured sync secret", { concurrency: false }, () => {
   const previous = process.env.QDS_SYNC_SECRET;
-  process.env.QDS_SYNC_SECRET = "short";
-
-  assert.equal(secretMatches({ headers: { "x-qds-sync-secret": "short" } }), false);
-
-  process.env.QDS_SYNC_SECRET = previous;
+  try {
+    process.env.QDS_SYNC_SECRET = "short";
+    assert.equal(secretMatches({ headers: { "x-qds-sync-secret": "short" } }), false);
+  } finally {
+    if (previous === undefined) delete process.env.QDS_SYNC_SECRET;
+    else process.env.QDS_SYNC_SECRET = previous;
+  }
 });
 
 test("rejects mismatched sync secret when configured secret is valid", { concurrency: false }, () => {
   const previous = process.env.QDS_SYNC_SECRET;
-  process.env.QDS_SYNC_SECRET = "v".repeat(32);
-
-  assert.equal(secretMatches({ headers: { "x-qds-sync-secret": "x".repeat(32) } }), false);
-
-  process.env.QDS_SYNC_SECRET = previous;
+  try {
+    process.env.QDS_SYNC_SECRET = "v".repeat(32);
+    assert.equal(secretMatches({ headers: { "x-qds-sync-secret": "x".repeat(32) } }), false);
+  } finally {
+    if (previous === undefined) delete process.env.QDS_SYNC_SECRET;
+    else process.env.QDS_SYNC_SECRET = previous;
+  }
 });
