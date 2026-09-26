@@ -12,7 +12,7 @@ export default async function handler(request, response) {
 
   try {
     const result = await pool.query(
-      `SELECT active, product FROM licenses WHERE license_hash = $1`,
+      `SELECT active, product, license_profile FROM licenses WHERE license_hash = $1`,
       [licenseHash(licenseKey)]
     );
     if (result.rowCount !== 1 || !result.rows[0].active) {
@@ -20,6 +20,9 @@ export default async function handler(request, response) {
     }
     const selected = selectProduct(getCatalog(), result.rows[0].product, target);
     if (!selected) return json(response, 403, { eligible: false });
+    if (result.rows[0].license_profile !== selected.license_profile) {
+      return json(response, 403, { eligible: false });
+    }
     return json(response, 200, {
       eligible: true,
       product: selected.product,

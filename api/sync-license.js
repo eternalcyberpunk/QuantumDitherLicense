@@ -11,6 +11,14 @@ function allowedProduct(product) {
   try { return Boolean(getCatalog()[product]); } catch { return false; }
 }
 
+function resolveLicenseProfile(product) {
+  try {
+    const profile = getCatalog()[product]?.license_profile;
+    if (typeof profile === "string" && profile.trim()) return profile.trim();
+  } catch { /* catalog is optional for legacy product sync */ }
+  return "qds-v1";
+}
+
 export default async function handler(request, response) {
   if (!methodAllowed(request, response, "POST")) return;
   if (!secretMatches(request)) return json(response, 401, { synced: false, error: "unauthorized" });
@@ -42,19 +50,21 @@ export default async function handler(request, response) {
     }
 
     const hash = licenseHash(licenseKey);
+    const licenseProfile = resolveLicenseProfile(product);
     await pool.query(
       `INSERT INTO licenses
-        (license_hash, order_id, product, active, customer_email, device_id, refunded_at)
-       VALUES ($1, $2, $3, $4, $5, NULL, $6)
+        (license_hash, order_id, product, license_profile, active, customer_email, device_id, refunded_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NULL, $7)
        ON CONFLICT (order_id) DO UPDATE SET
          license_hash = EXCLUDED.license_hash,
          product = EXCLUDED.product,
+         license_profile = EXCLUDED.license_profile,
          active = EXCLUDED.active,
          customer_email = EXCLUDED.customer_email,
-         device_id = CASE WHEN $7 THEN NULL ELSE licenses.device_id END,
+         device_id = CASE WHEN $8 THEN NULL ELSE licenses.device_id END,
          refunded_at = EXCLUDED.refunded_at,
          updated_at = NOW()`,
-      [hash, orderId, product, true, customerEmail, null, resetDevice]
+      [hash, orderId, product, licenseProfile, true, customerEmail, null, resetDevice]
     );
     return json(response, 200, { synced: true, product, active });
   } catch (error) {

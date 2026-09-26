@@ -1,6 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import handler from "../api/sync-license.js";
 
 const poolKey = Symbol.for("eternalcyberia.qds.pgpool");
 
@@ -41,6 +40,8 @@ test("sync handler honors configured product code", { concurrency: false }, asyn
   };
 
   try {
+    const { default: handler } = await import(new URL(`../api/sync-license.js?case=${Date.now()}`, import.meta.url));
+
     const okResponse = createResponse();
     await handler({
       method: "POST",

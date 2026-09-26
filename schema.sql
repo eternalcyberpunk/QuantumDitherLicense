@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS licenses (
     license_hash CHAR(64) PRIMARY KEY,
     order_id TEXT NOT NULL UNIQUE,
     product TEXT NOT NULL,
+    license_profile TEXT NOT NULL DEFAULT 'qds-v1',
     active BOOLEAN NOT NULL DEFAULT TRUE,
     customer_email TEXT,
     device_id CHAR(32),
@@ -9,6 +10,9 @@ CREATE TABLE IF NOT EXISTS licenses (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     refunded_at TIMESTAMPTZ
 );
+
+ALTER TABLE licenses
+    ADD COLUMN IF NOT EXISTS license_profile TEXT NOT NULL DEFAULT 'qds-v1';
 
 CREATE INDEX IF NOT EXISTS licenses_product_active_idx
     ON licenses (product, active);

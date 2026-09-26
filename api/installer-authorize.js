@@ -30,7 +30,7 @@ export default async function handler(request, response) {
     await client.query("BEGIN");
     transactionOpen = true;
     const result = await client.query(
-      `SELECT active, product, device_id
+      `SELECT active, product, license_profile, device_id
        FROM licenses
        WHERE license_hash = $1
        FOR UPDATE`,
@@ -46,6 +46,12 @@ export default async function handler(request, response) {
     const selected = selectProduct(getCatalog(), requestedProduct, target);
     if (!selected) {
       await recordEvent(client, hash, hash, deviceId, false, "installer_artifact_missing");
+      await client.query("COMMIT");
+      transactionOpen = false;
+      return json(response, 403, { authorized: false });
+    }
+    if (result.rows[0].license_profile !== selected.license_profile) {
+      await recordEvent(client, hash, hash, deviceId, false, "installer_profile_mismatch");
       await client.query("COMMIT");
       transactionOpen = false;
       return json(response, 403, { authorized: false });
