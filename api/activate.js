@@ -4,7 +4,7 @@ import { licenseHash, normalizeDevice, normalizeLicense } from "../lib/security.
 
 async function recordEvent(client, attemptedHash, linkedHash, deviceId, accepted, reason) {
   await client.query(
-    `INSERT INTO activation_events (attempted_hash, license_hash, device_id, accepted, reason)
+    `INSERT INTO activation_events (attempted_license_hash, license_hash, device_id, accepted, reason)
      VALUES ($1, $2, $3, $4, $5)`,
     [attemptedHash, linkedHash, deviceId, accepted, reason]
   );
@@ -70,7 +70,7 @@ export default async function handler(request, response) {
       try { await client.query("ROLLBACK"); } catch { /* connection is already unusable */ }
     }
     console.error("activation failed", error?.code ?? "database_error");
-    return json(response, 503, { valid: false, product });
+    return json(response, 503, { valid: false, product: defaultProduct });
   } finally {
     client?.release();
   }

@@ -5,7 +5,7 @@ import { licenseHash, normalizeDevice, normalizeLicense } from "../lib/security.
 
 async function recordEvent(client, attemptedHash, linkedHash, deviceId, accepted, reason) {
   await client.query(
-    `INSERT INTO activation_events (attempted_hash, license_hash, device_id, accepted, reason)
+    `INSERT INTO activation_events (attempted_license_hash, license_hash, device_id, accepted, reason)
      VALUES ($1, $2, $3, $4, $5)`,
     [attemptedHash, linkedHash, deviceId, accepted, reason]
   );

@@ -25,7 +25,7 @@ Installer -> private Vercel Blob URL        -> signed MSI or notarized PKG
 ```
 
 Set `EC_INSTALLER_CATALOG_JSON` using `.env.installer.example`. For the recommended
-private-Blob configuration, connect that Blob store to this project so Vercel can
+private Blob configuration, connect that Blob store to this project so Vercel can
 issue a pathname-scoped GET URL valid for ten minutes. Public HTTPS artifact URLs
 are also accepted, but do not provide download gating.
 
